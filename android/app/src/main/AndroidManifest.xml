@@ -3,6 +3,8 @@
 
     <!-- Camera permission for video capture -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Feature declaration to ensure the app requires a camera -->
     <uses-feature android:name="android.hardware.camera" android:required="true" />
 
