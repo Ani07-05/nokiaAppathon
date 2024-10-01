@@ -16,9 +16,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark, // Dark theme for a modern look
+        brightness: Brightness.dark, 
         primaryColor: Colors.blueAccent,
-        fontFamily: 'Montserrat', // Clean and modern font
+        fontFamily: 'Montserrat', 
       ),
       home: VideoCaptureDemo(),
     );
@@ -75,6 +75,7 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo> with SingleTickerPr
       } else {
         await platform.invokeMethod('startCapture');
         _controller.forward();
+        await platform.invokeMethod('encodeAndSend'); // New method to encode and send video
       }
       setState(() {
         isCapturing = !isCapturing;
@@ -108,7 +109,10 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo> with SingleTickerPr
           // Camera Preview (NativeView)
           Positioned.fill(
             child: hasPermission
-                ? NativeView()
+                ? AspectRatio(
+                    aspectRatio: 16/9, // Adjust this ratio as per your camera output
+                    child: NativeView(),
+                  )
                 : Center(
                     child: Text(
                       "Waiting for camera permission...",
