@@ -3,7 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart'; 
+import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() {
@@ -16,9 +16,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark, 
+        brightness: Brightness.dark,
         primaryColor: Colors.blueAccent,
-        fontFamily: 'Montserrat', 
+        fontFamily: 'Montserrat',
       ),
       home: VideoCaptureDemo(),
     );
@@ -30,7 +30,8 @@ class VideoCaptureDemo extends StatefulWidget {
   _VideoCaptureDemoState createState() => _VideoCaptureDemoState();
 }
 
-class _VideoCaptureDemoState extends State<VideoCaptureDemo> with SingleTickerProviderStateMixin {
+class _VideoCaptureDemoState extends State<VideoCaptureDemo>
+    with SingleTickerProviderStateMixin {
   static const platform = MethodChannel('video_control');
   bool isCapturing = false;
   bool hasPermission = false;
@@ -41,8 +42,11 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: Duration(seconds: 1));
-    _colorTween = _controller.drive(ColorTween(begin: Colors.redAccent, end: Colors.greenAccent));
+    _controller =
+        AnimationController(vsync: this, duration: Duration(seconds: 1));
+    _colorTween = _controller.drive(
+      ColorTween(begin: Colors.redAccent, end: Colors.greenAccent),
+    );
     _requestCameraPermission();
   }
 
@@ -52,19 +56,23 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo> with SingleTickerPr
       hasPermission = status.isGranted;
     });
     if (!hasPermission) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Camera permission is required to capture video."),
-        backgroundColor: Colors.red,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Camera permission is required to capture video."),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   Future<void> _startStopVideo() async {
     if (!hasPermission) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Camera permission denied."),
-        backgroundColor: Colors.red,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Camera permission denied."),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
@@ -75,7 +83,7 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo> with SingleTickerPr
       } else {
         await platform.invokeMethod('startCapture');
         _controller.forward();
-        await platform.invokeMethod('encodeAndSend'); // New method to encode and send video
+        await platform.invokeMethod('encodeAndSend'); // Method to encode and send video
       }
       setState(() {
         isCapturing = !isCapturing;
@@ -96,11 +104,14 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo> with SingleTickerPr
     return Scaffold(
       body: Stack(
         children: [
-          // Background with gradient and video preview
-          Container(
+          // Fun, playful animated gradient background
+          AnimatedContainer(
+            duration: Duration(seconds: 3),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.blueAccent, Colors.deepPurple],
+                colors: isCapturing
+                    ? [Colors.red, Colors.purple]
+                    : [Colors.blue, Colors.green],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -110,13 +121,14 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo> with SingleTickerPr
           Positioned.fill(
             child: hasPermission
                 ? AspectRatio(
-                    aspectRatio: 16/9, // Adjust this ratio as per your camera output
+                    aspectRatio: 16 / 9,
                     child: NativeView(),
                   )
                 : Center(
                     child: Text(
                       "Waiting for camera permission...",
-                      style: GoogleFonts.montserrat(fontSize: 18, color: Colors.white),
+                      style: GoogleFonts.montserrat(
+                          fontSize: 18, color: Colors.white),
                     ),
                   ),
           ),
@@ -128,27 +140,53 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo> with SingleTickerPr
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Capture Status
-                  Text(
-                    isCapturing ? "Recording..." : "Ready to record",
-                    style: GoogleFonts.montserrat(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w400,
+                  // Animated Capture Status Text
+                  AnimatedOpacity(
+                    opacity: isCapturing ? 1.0 : 0.7,
+                    duration: Duration(seconds: 1),
+                    child: Text(
+                      isCapturing ? "🎥 Recording..." : "Ready to record 🎬",
+                      style: GoogleFonts.montserrat(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   SizedBox(height: 20),
-                  // Capture Button with Animation
-                  FloatingActionButton(
-                    backgroundColor: _colorTween.value,
-                    onPressed: _startStopVideo,
-                    child: AnimatedIcon(
-                      icon: AnimatedIcons.play_pause,
-                      progress: _controller,
-                      color: Colors.white,
-                      size: 32,
+                  // Animated Capture Button
+                  AnimatedContainer(
+                    duration: Duration(milliseconds: 300),
+                    width: isCapturing ? 80 : 70,
+                    height: isCapturing ? 80 : 70,
+                    decoration: BoxDecoration(
+                      color: _colorTween.value,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black38,
+                          spreadRadius: 4,
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      iconSize: 40,
+                      icon: Icon(
+                        isCapturing ? Icons.stop : Icons.play_arrow,
+                        color: Colors.white,
+                      ),
+                      onPressed: _startStopVideo,
                     ),
                   ),
+                  SizedBox(height: 20),
+                  // Fun Circular Progress Indicator when recording
+                  if (isCapturing)
+                    CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Colors.white),
+                      strokeWidth: 4.0,
+                    ),
                 ],
               ),
             ),
