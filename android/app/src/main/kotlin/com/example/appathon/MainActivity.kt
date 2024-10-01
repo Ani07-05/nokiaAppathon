@@ -1,11 +1,16 @@
 package com.example.appathon
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.hardware.camera2.*
+import android.os.Handler
+import android.os.HandlerThread
 import android.view.Surface
 import android.view.SurfaceView
 import android.view.SurfaceHolder
 import android.widget.FrameLayout
+import androidx.core.app.ActivityCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
@@ -17,7 +22,9 @@ class MainActivity : FlutterActivity() {
     private var cameraDevice: CameraDevice? = null
     private lateinit var cameraCaptureSession: CameraCaptureSession
     private lateinit var captureRequestBuilder: CaptureRequest.Builder
-    private lateinit var surfaceHolder: SurfaceHolder  // This will hold the reference to SurfaceHolder
+    private lateinit var surfaceHolder: SurfaceHolder
+    private lateinit var backgroundHandler: Handler
+    private lateinit var backgroundThread: HandlerThread
 
     override fun configureFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -34,11 +41,17 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "startCapture" -> {
-                    startVideoCapture()
-                    result.success("Video capture started")
+                    if (checkCameraPermission()) {
+                        startBackgroundThread()
+                        startVideoCapture()
+                        result.success("Video capture started")
+                    } else {
+                        result.error("PERMISSION_DENIED", "Camera permission denied", null)
+                    }
                 }
                 "stopCapture" -> {
                     stopVideoCapture()
+                    stopBackgroundThread()
                     result.success("Video capture stopped")
                 }
                 else -> result.notImplemented()
@@ -46,9 +59,26 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun startBackgroundThread() {
+        backgroundThread = HandlerThread("CameraBackground").also { it.start() }
+        backgroundHandler = Handler(backgroundThread.looper)
+    }
+
+    private fun stopBackgroundThread() {
+        backgroundThread.quitSafely()
+        backgroundThread.join()
+    }
+
     private fun startVideoCapture() {
         val cameraManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
         val cameraId = cameraManager.cameraIdList[0] // Use first camera
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            // Request camera permission if not granted
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 101)
+            return
+        }
+
         cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
             override fun onOpened(camera: CameraDevice) {
                 cameraDevice = camera
@@ -62,7 +92,7 @@ class MainActivity : FlutterActivity() {
             override fun onError(camera: CameraDevice, error: Int) {
                 cameraDevice?.close()
             }
-        }, null)
+        }, backgroundHandler)
     }
 
     private fun startPreview(cameraDevice: CameraDevice) {
@@ -77,19 +107,24 @@ class MainActivity : FlutterActivity() {
         cameraDevice.createCaptureSession(listOf(surface), object : CameraCaptureSession.StateCallback() {
             override fun onConfigured(session: CameraCaptureSession) {
                 cameraCaptureSession = session
-                cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null)
+                cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler)
             }
 
             override fun onConfigureFailed(session: CameraCaptureSession) {
                 // Handle failure
             }
-        }, null)
+        }, backgroundHandler)
     }
 
     private fun stopVideoCapture() {
         cameraCaptureSession.close()
         cameraDevice?.close()
         cameraDevice = null
+    }
+
+    // Check camera permission
+    private fun checkCameraPermission(): Boolean {
+        return ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
     }
 
     class SurfaceViewFactory(private val onSurfaceReady: (SurfaceHolder) -> Unit) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
@@ -100,7 +135,6 @@ class MainActivity : FlutterActivity() {
 
     class NativeSurfaceView(context: Context, private val onSurfaceReady: (SurfaceHolder) -> Unit) : PlatformView {
         private val surfaceView: SurfaceView = SurfaceView(context)
-        private var cameraDevice: CameraDevice? = null
 
         init {
             surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
@@ -113,7 +147,7 @@ class MainActivity : FlutterActivity() {
                 }
 
                 override fun surfaceDestroyed(holder: SurfaceHolder) {
-                    cameraDevice?.close()
+                    // Close the camera if necessary
                 }
             })
 
@@ -129,7 +163,7 @@ class MainActivity : FlutterActivity() {
         }
 
         override fun dispose() {
-            cameraDevice?.close()
+            // Handle view disposal
         }
     }
 }
