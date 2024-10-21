@@ -15,10 +15,6 @@ import android.view.SurfaceView
 import android.view.SurfaceHolder
 import android.widget.FrameLayout
 import androidx.core.app.ActivityCompat
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.pose.Pose
-import com.google.mlkit.vision.pose.PoseDetection
-import com.google.mlkit.vision.pose.PoseDetectorOptions
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
@@ -52,13 +48,6 @@ class MainActivity : FlutterActivity() {
     private var udpSocket: DatagramSocket? = null
     private var serverAddress: InetAddress? = null
     private var serverPort: Int = 1234 // Set your server port for sending/receiving
-
-    // Gesture Detection using ML Kit Pose Detection
-    private val poseDetector = PoseDetection.getClient(
-        PoseDetectorOptions.Builder()
-            .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
-            .build()
-    )
 
     override fun configureFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -171,9 +160,6 @@ class MainActivity : FlutterActivity() {
                 Log.d(TAG, "Capture session configured")
                 cameraCaptureSession = session
                 cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler)
-
-                // Start gesture detection
-                startGestureDetection()
             }
 
             override fun onConfigureFailed(session: CameraCaptureSession) {
@@ -187,16 +173,6 @@ class MainActivity : FlutterActivity() {
         cameraCaptureSession.close()
         cameraDevice?.close()
         cameraDevice = null
-    }
-
-    // Function to start detecting gestures
-    private fun startGestureDetection() {
-        // Logic to start analyzing frames for gesture detection
-        // This would likely involve continuously analyzing camera frames using the poseDetector
-        // and triggering start/stop recording based on gesture recognition.
-        
-        // For example:
-        // Call `detectGesture(image)` where `image` is the InputImage created from camera frames
     }
 
     private suspend fun startEncodingAndSending() {
@@ -417,3 +393,4 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
+
