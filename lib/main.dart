@@ -200,8 +200,7 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo>
                         ? "Receiving Video... 🎥"
                         : "Start Receiving Video"),
                     style: ElevatedButton.styleFrom(
-                      primary: Colors.blueAccent,
-                      onPrimary: Colors.white,
+                      foregroundColor: Colors.white, backgroundColor: Colors.blueAccent,
                     ),
                   ),
                 ],
