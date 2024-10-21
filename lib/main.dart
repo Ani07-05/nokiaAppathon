@@ -35,6 +35,7 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo>
   static const platform = MethodChannel('video_control');
   bool isCapturing = false;
   bool hasPermission = false;
+  bool isReceiving = false; // New state for receiving video
 
   late AnimationController _controller;
   late Animation<Color?> _colorTween;
@@ -93,6 +94,18 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo>
     }
   }
 
+  // New: Start receiving RTP packets and display video
+  Future<void> _startReceivingVideo() async {
+    try {
+      await platform.invokeMethod('startReceiving'); // Call platform method to start receiving
+      setState(() {
+        isReceiving = true;
+      });
+    } on PlatformException catch (e) {
+      print("Failed to start receiving video: '${e.message}'.");
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -104,7 +117,7 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo>
     return Scaffold(
       body: Stack(
         children: [
-          // Fun, playful animated gradient background
+          // Animated background based on capture state
           AnimatedContainer(
             duration: Duration(seconds: 3),
             decoration: BoxDecoration(
@@ -117,12 +130,12 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo>
               ),
             ),
           ),
-          // Camera Preview (NativeView)
+          // Native camera preview or video display
           Positioned.fill(
             child: hasPermission
                 ? AspectRatio(
                     aspectRatio: 16 / 9,
-                    child: NativeView(),
+                    child: NativeView(), // Native view for video capture or playback
                   )
                 : Center(
                     child: Text(
@@ -132,7 +145,7 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo>
                     ),
                   ),
           ),
-          // Video Capture Controls
+          // Video control buttons
           Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
@@ -140,7 +153,7 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Animated Capture Status Text
+                  // Video status text
                   AnimatedOpacity(
                     opacity: isCapturing ? 1.0 : 0.7,
                     duration: Duration(seconds: 1),
@@ -154,7 +167,7 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo>
                     ),
                   ),
                   SizedBox(height: 20),
-                  // Animated Capture Button
+                  // Capture button (start/stop recording)
                   AnimatedContainer(
                     duration: Duration(milliseconds: 300),
                     width: isCapturing ? 80 : 70,
@@ -180,13 +193,17 @@ class _VideoCaptureDemoState extends State<VideoCaptureDemo>
                     ),
                   ),
                   SizedBox(height: 20),
-                  // Fun Circular Progress Indicator when recording
-                  if (isCapturing)
-                    CircularProgressIndicator(
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Colors.white),
-                      strokeWidth: 4.0,
+                  // Button to start receiving RTP video
+                  ElevatedButton(
+                    onPressed: _startReceivingVideo,
+                    child: Text(isReceiving
+                        ? "Receiving Video... 🎥"
+                        : "Start Receiving Video"),
+                    style: ElevatedButton.styleFrom(
+                      primary: Colors.blueAccent,
+                      onPrimary: Colors.white,
                     ),
+                  ),
                 ],
               ),
             ),
