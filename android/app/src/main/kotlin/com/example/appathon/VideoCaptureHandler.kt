@@ -17,6 +17,8 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.nio.ByteBuffer
+import android.opengl.GLES20
+
 
 class VideoCaptureHandler(
     private val context: Context,
@@ -215,5 +217,105 @@ class VideoCaptureHandler(
         mediaCodec?.stop()
         mediaCodec?.release()
         stopBackgroundThread()
+    }
+}
+
+class VideoFilterManager {
+
+    fun applyGrayscaleFilter(surface: Surface) {
+        // Apply grayscale OpenGL shader
+        GLES20.glUseProgram(createShaderProgram(FRAGMENT_SHADER_GRAYSCALE))
+        // Pass the video surface through OpenGL shader for grayscale effect
+        Log.d(TAG, "Applying Grayscale Filter")
+    }
+
+    fun applySepiaFilter(surface: Surface) {
+        // Apply sepia OpenGL shader
+        GLES20.glUseProgram(createShaderProgram(FRAGMENT_SHADER_SEPIA))
+        // Pass the video surface through OpenGL shader for sepia effect
+        Log.d(TAG, "Applying Sepia Filter")
+    }
+
+    private fun createShaderProgram(fragmentShader: String): Int {
+        // Compile the vertex and fragment shaders into a program
+        val vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER)
+        val fragmentShaderCompiled = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShader)
+
+        // Create and link program
+        val program = GLES20.glCreateProgram()
+        GLES20.glAttachShader(program, vertexShader)
+        GLES20.glAttachShader(program, fragmentShaderCompiled)
+        GLES20.glLinkProgram(program)
+
+        // Check for linking errors
+        val linkStatus = IntArray(1)
+        GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linkStatus, 0)
+        if (linkStatus[0] != GLES20.GL_TRUE) {
+            Log.e(TAG, "Could not link program: ${GLES20.glGetProgramInfoLog(program)}")
+            GLES20.glDeleteProgram(program)
+        }
+
+        return program
+    }
+
+    private fun loadShader(type: Int, shaderCode: String): Int {
+        // Create a new shader
+        val shader = GLES20.glCreateShader(type)
+
+        // Add the shader source code and compile it
+        GLES20.glShaderSource(shader, shaderCode)
+        GLES20.glCompileShader(shader)
+
+        // Check for compilation errors
+        val compileStatus = IntArray(1)
+        GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compileStatus, 0)
+        if (compileStatus[0] == 0) {
+            Log.e(TAG, "Could not compile shader: ${GLES20.glGetShaderInfoLog(shader)}")
+            GLES20.glDeleteShader(shader)
+            return 0
+        }
+
+        return shader
+    }
+
+    companion object {
+        private const val TAG = "VideoFilterManager"
+
+        // Vertex shader (pass-through)
+        const val VERTEX_SHADER = """
+            attribute vec4 position;
+            attribute vec2 texCoord;
+            varying vec2 texCoordVarying;
+            void main() {
+                gl_Position = position;
+                texCoordVarying = texCoord;
+            }
+        """
+
+        // Fragment shader for grayscale filter
+        const val FRAGMENT_SHADER_GRAYSCALE = """
+            precision mediump float;
+            varying vec2 texCoordVarying;
+            uniform sampler2D texture;
+            void main() {
+                vec4 color = texture2D(texture, texCoordVarying);
+                float gray = (color.r + color.g + color.b) / 3.0;
+                gl_FragColor = vec4(vec3(gray), 1.0);
+            }
+        """
+
+        // Fragment shader for sepia filter
+        const val FRAGMENT_SHADER_SEPIA = """
+            precision mediump float;
+            varying vec2 texCoordVarying;
+            uniform sampler2D texture;
+            void main() {
+                vec4 color = texture2D(texture, texCoordVarying);
+                float r = color.r * 0.393 + color.g * 0.769 + color.b * 0.189;
+                float g = color.r * 0.349 + color.g * 0.686 + color.b * 0.168;
+                float b = color.r * 0.272 + color.g * 0.534 + color.b * 0.131;
+                gl_FragColor = vec4(r, g, b, 1.0);
+            }
+        """
     }
 }
