@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.nio.ByteBuffer
 
 class MainActivity : FlutterActivity() {
 
@@ -41,11 +42,11 @@ class MainActivity : FlutterActivity() {
     private lateinit var backgroundHandler: Handler
     private lateinit var backgroundThread: HandlerThread
 
-    // Define MediaCodec and DatagramSocket for encoding and sending
+    // Define MediaCodec and DatagramSocket for encoding, sending, and receiving
     private var mediaCodec: MediaCodec? = null
     private var udpSocket: DatagramSocket? = null
     private var serverAddress: InetAddress? = null
-    private var serverPort: Int = 1234 // Set your server port
+    private var serverPort: Int = 1234 // Set your server port for sending/receiving
 
     override fun configureFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -84,6 +85,13 @@ class MainActivity : FlutterActivity() {
                     CoroutineScope(Dispatchers.IO).launch {
                         startEncodingAndSending()  // Run the network operations in background
                         result.success("Encoding and sending started")
+                    }
+                }
+                "startReceiving" -> {
+                    Log.d(TAG, "startReceiving called")
+                    CoroutineScope(Dispatchers.IO).launch {
+                        startReceivingAndDecoding() // Receive and decode RTP stream
+                        result.success("Receiving and decoding started")
                     }
                 }
                 else -> result.notImplemented()
@@ -184,7 +192,7 @@ class MainActivity : FlutterActivity() {
 
             // Setup UDP socket for RTP packet transmission
             udpSocket = DatagramSocket()
-            serverAddress = InetAddress.getByName("172.20.240.1")  // Replace with actual server IP
+            serverAddress = InetAddress.getByName("172.20.240.1")  
             Log.d(TAG, "UDP socket initialized with server $serverAddress")
 
             var sequenceNumber = 0
@@ -222,6 +230,57 @@ class MainActivity : FlutterActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error during encoding and sending", e)
+        }
+    }
+
+    private suspend fun startReceivingAndDecoding() {
+        Log.d(TAG, "Start receiving and decoding")
+        try {
+            // Setup UDP socket for receiving RTP packets
+            udpSocket = DatagramSocket(serverPort)
+            val buffer = ByteArray(1500) // Buffer to hold the RTP packets
+
+            // Setup MediaCodec for decoding H.264 video
+            mediaCodec = MediaCodec.createDecoderByType("video/avc")
+            val format = MediaFormat.createVideoFormat("video/avc", 1280, 720)
+            mediaCodec?.configure(format, surfaceHolder.surface, null, 0)
+            mediaCodec?.start()
+
+            while (true) {
+                // Receive RTP packet
+                val packet = DatagramPacket(buffer, buffer.size)
+                udpSocket?.receive(packet)
+
+                val packetData = packet.data.copyOf(packet.length)
+                Log.d(TAG, "Received RTP packet size: ${packet.length}")
+
+                decodeRTPPacket(packetData)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error receiving and decoding RTP packets", e)
+        }
+    }
+
+    private fun decodeRTPPacket(packetData: ByteArray) {
+        val inputBufferIndex = mediaCodec!!.dequeueInputBuffer(10000)
+        if (inputBufferIndex >= 0) {
+            val inputBuffer: ByteBuffer = mediaCodec!!.getInputBuffer(inputBufferIndex)!!
+            inputBuffer.clear()
+            inputBuffer.put(packetData)
+
+            mediaCodec!!.queueInputBuffer(
+                inputBufferIndex,
+                0,
+                packetData.size,
+                System.currentTimeMillis() * 1000,
+                0
+            )
+
+            val bufferInfo = MediaCodec.BufferInfo()
+            val outputBufferIndex = mediaCodec!!.dequeueOutputBuffer(bufferInfo, 10000)
+            if (outputBufferIndex >= 0) {
+                mediaCodec!!.releaseOutputBuffer(outputBufferIndex, true)
+            }
         }
     }
 
